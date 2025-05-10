@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explorer ST Gauge Cluster Game</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      text-align: center;
+    }
+    .cluster {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 20px;
+    }
+    .gauge {
+      width: 120px;
+      height: 120px;
+      border: 4px solid #333;
+      border-radius: 50%;
+      position: relative;
+      background: #000;
+    }
+    .needle {
+      width: 4px;
+      height: 60px;
+      background: red;
+      position: absolute;
+      top: 30px;
+      left: 58px;
+      transform-origin: bottom center;
+      transform: rotate(-90deg);
+    }
+    .label {
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+    .readout, .extras {
+      margin: 10px 0;
+      font-size: 1.1rem;
+    }
+    .buttons {
+      margin-top: 15px;
+    }
+    button {
+      margin: 5px;
+      padding: 10px;
+      background-color: #222;
+      color: #fff;
+      border: 1px solid #444;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Explorer ST Cluster</h1>
+
+  <div class="readout">
+    Speed: <span id="speedVal">0</span> mph |
+    RPM: <span id="rpmVal">0</span> |
+    Miles: <span id="milesVal">0.0</span>
+  </div>
+
+  <div class="cluster">
+    <div class="gauge"><div id="speedNeedle" class="needle"></div><div class="label">Speed</div></div>
+    <div class="gauge"><div id="rpmNeedle" class="needle"></div><div class="label">RPM</div></div>
+    <div class="gauge"><div id="fuelNeedle" class="needle"></div><div class="label">Fuel</div></div>
+    <div class="gauge"><div id="tempNeedle" class="needle"></div><div class="label">Tire Temp</div></div>
+    <div class="gauge"><div id="boostNeedle" class="needle"></div><div class="label">Turbo PSI</div></div>
+  </div>
+
+  <div class="extras">
+    <div>Gear: <span id="gear">P</span></div>
+    <div>Fuel: <span id="fuel">100%</span></div>
+    <div>Tire Temp: <span id="temp">90°F</span></div>
+    <div>Radio Vol: <span id="volume">0%</span></div>
+    <div>Cruise: <span id="cruise">Off</span></div>
+  </div>
+
+  <div class="readout">
+    <span id="leftSignal" style="color:#0f0;">&lt;</span>
+    <span id="rightSignal" style="color:#0f0;">&gt;</span> |
+    <span id="checkEngine" style="color:orange;">Check Engine</span>
+    <span id="abs" style="color:red;">ABS</span>
+  </div>
+
+  <div class="buttons">
+    <button onclick="pressGas()">Gas</button>
+    <button onclick="pressBrake()">Brake</button>
+    <button onclick="shiftGear()">Shift</button>
+    <button onclick="toggleLeft()">Left Signal</button>
+    <button onclick="toggleRight()">Right Signal</button>
+    <button onclick="toggleCruise()">Cruise</button>
+    <button onclick="volUp()">Vol +</button>
+    <button onclick="volDown()">Vol -</button>
+  </div>
+
+  <script>
+    let speed = 0, rpm = 0, miles = 0, fuel = 100, tireTemp = 90, boost = 0;
+    let gearIndex = 0;
+    const gears = ['P', 'R', 'N', 'D', '1', '2'];
+    let interval, cruise = false, volume = 0;
+    let leftOn = false, rightOn = false;
+
+    const speedNeedle = document.getElementById('speedNeedle');
+    const rpmNeedle = document.getElementById('rpmNeedle');
+    const fuelNeedle = document.getElementById('fuelNeedle');
+    const tempNeedle = document.getElementById('tempNeedle');
+    const boostNeedle = document.getElementById('boostNeedle');
+
+    function updateDisplay() {
+      document.getElementById('speedVal').textContent = speed.toFixed(0);
+      document.getElementById('rpmVal').textContent = rpm.toFixed(0);
+      document.getElementById('milesVal').textContent = miles.toFixed(1);
+      document.getElementById('gear').textContent = gears[gearIndex];
+      document.getElementById('fuel').textContent = `${fuel.toFixed(0)}%`;
+      document.getElementById('temp').textContent = `${tireTemp.toFixed(0)}°F`;
+      document.getElementById('volume').textContent = `${volume}%`;
+      document.getElementById('cruise').textContent = cruise ? 'On' : 'Off';
+
+      speedNeedle.style.transform = `rotate(${(speed / 140) * 180 - 90}deg)`;
+      rpmNeedle.style.transform = `rotate(${(rpm / 6000) * 180 - 90}deg)`;
+      fuelNeedle.style.transform = `rotate(${(fuel / 100) * 180 - 90}deg)`;
+      tempNeedle.style.transform = `rotate(${((tireTemp - 70) / 100) * 180 - 90}deg)`;
+      boostNeedle.style.transform = `rotate(${(boost / 20) * 180 - 90}deg)`;
+    }
+
+    function pressGas() {
+      if (!interval && gears[gearIndex] === 'D') {
+        interval = setInterval(() => {
+          speed = Math.min(speed + 1.5, 140);
+          rpm = Math.min(rpm + 180, 6000);
+          boost = Math.min(boost + 2, 20);
+          fuel = Math.max(fuel - 0.1, 0);
+          tireTemp = Math.min(tireTemp + 0.5, 250);
+          miles += speed / 3600;
+          updateDisplay();
+        }, 100);
+      }
+    }
+
+    function pressBrake() {
+      clearInterval(interval);
+      interval = null;
+      cruise = false;
+      let brake = setInterval(() => {
+        if (speed > 0) {
+          speed = Math.max(speed - 2, 0);
+          rpm = Math.max(rpm - 250, 0);
+          boost = Math.max(boost - 2, 0);
+          tireTemp = Math.max(tireTemp - 0.3, 90);
+          updateDisplay();
+        } else {
+          clearInterval(brake);
+        }
+      }, 100);
+    }
+
+    function shiftGear() {
+      gearIndex = (gearIndex + 1) % gears.length;
+      updateDisplay();
+    }
+
+    function toggleLeft() { leftOn = !leftOn; }
+    function toggleRight() { rightOn = !rightOn; }
+    function toggleCruise() { cruise = !cruise; updateDisplay(); }
+    function volUp() { if (volume < 100) volume += 10; updateDisplay(); }
+    function volDown() { if (volume > 0) volume -= 10; updateDisplay(); }
+
+    function startupSequence() {
+      ['checkEngine', 'abs'].forEach(id => document.getElementById(id).style.opacity = 1);
+      setTimeout(() => {
+        ['checkEngine', 'abs'].forEach(id => document.getElementById(id).style.opacity = 0.3);
+      }, 2000);
+    }
+
+    function signalLoop() {
+      setInterval(() => {
+        document.getElementById('leftSignal').style.opacity = leftOn ? (document.getElementById('leftSignal').style.opacity === '1' ? '0.2' : '1') : '0.2';
+        document.getElementById('rightSignal').style.opacity = rightOn ? (document.getElementById('rightSignal').style.opacity === '1' ? '0.2' : '1') : '0.2';
+      }, 500);
+    }
+
+    updateDisplay();
+    startupSequence();
+    signalLoop();
+  </script>
+</body>
+</html>
